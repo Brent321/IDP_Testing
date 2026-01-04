@@ -17,19 +17,41 @@
   "clients": [
     {
       "clientId": "blazor-app",
+      "name": "Blazor App",
+      "description": "Client for the Blazor application",
+      "secret": "blazor-app-secret",
       "protocol": "openid-connect",
       "publicClient": false,
-      "secret": "blazor-app-secret",
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
       "redirectUris": [
-        "https://localhost:7235/signin-oidc",
-        "http://localhost:5041/signin-oidc"
+        "https://localhost:7235/signin-oidc"
       ],
       "webOrigins": [
-        "+"
+        "https://localhost:7235"
       ],
       "attributes": {
-        "post.logout.redirect.uris": "https://localhost:7235/*\nhttp://localhost:5041/*"
-      }
+        "post.logout.redirect.uris": "https://localhost:7235/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "multivalued": "true"
+          }
+        }
+      ]
     }
   ],
   "users": [

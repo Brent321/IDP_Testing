@@ -11,11 +11,11 @@
   "serviceAccountsEnabled": false,
   "publicClient": false,
   "redirectUris": [
-    "https://localhost:7123/signin-oidc"
+    "https://localhost:7235/signin-oidc"
   ],
   "postLogoutRedirectUris": [
-    "https://localhost:7123/logged-out",
-    "https://localhost:7123/"
+    "https://localhost:7235/logged-out",
+    "https://localhost:7235/"
   ],
   "protocolMappers": [
     {

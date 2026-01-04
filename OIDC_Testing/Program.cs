@@ -9,13 +9,8 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using OIDC_Testing.Components;
 using System.Security.Claims;
 using System.Text.Json;
-using System.Net.Http;
-using System.Collections.Generic;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Add HttpClientFactory for token refresh
-builder.Services.AddHttpClient();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -43,7 +38,6 @@ builder.Services.AddAuthentication(options =>
         options.Scope.Add("profile");
         options.Scope.Add("email");
         options.Scope.Add("roles");
-        // Request offline access to get a refresh token
         options.Scope.Add("offline_access");
 
         options.ClaimActions.MapJsonKey("preferred_username", "preferred_username");
@@ -68,21 +62,6 @@ builder.Services.AddAuthentication(options =>
 
             return Task.CompletedTask;
         };
-
-        options.Events.OnRedirectToIdentityProviderForSignOut = context =>
-        {
-            var idToken = context.Properties?.GetTokenValue("id_token");
-            if (!string.IsNullOrWhiteSpace(idToken))
-            {
-                context.ProtocolMessage.IdTokenHint = idToken;
-            }
-
-            var request = context.Request;
-            var postLogoutUri = $"{request.Scheme}://{request.Host}/logged-out";
-            context.ProtocolMessage.PostLogoutRedirectUri = postLogoutUri;
-
-            return Task.CompletedTask;
-        };
     });
 
 builder.Services.AddAuthorization(options =>
@@ -99,7 +78,6 @@ builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStat
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -111,7 +89,6 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Send 403 to /forbidden and 404 to /not-found
 app.UseStatusCodePages(context =>
 {
     var statusCode = context.HttpContext.Response.StatusCode;
@@ -137,62 +114,34 @@ app.MapGet("/login", (HttpContext httpContext, string? returnUrl) =>
         new[] { OpenIdConnectDefaults.AuthenticationScheme });
 });
 
-app.MapGet("/logout", async (
-    HttpContext httpContext,
-    IHttpClientFactory httpClientFactory,
-    IConfiguration configuration) =>
+app.MapGet("/logout", async (HttpContext httpContext) =>
 {
-    var props = new AuthenticationProperties();
-    var keycloak = configuration.GetSection("Keycloak");
-
-    // 1. Get the refresh token from the session
-    var refreshToken = await httpContext.GetTokenAsync("refresh_token");
-
-    if (!string.IsNullOrWhiteSpace(refreshToken))
-    {
-        // 2. Use the refresh token to get a new id_token
-        var client = httpClientFactory.CreateClient();
-        var tokenEndpoint = $"{keycloak["Authority"]}/protocol/openid-connect/token";
-
-        var requestBody = new Dictionary<string, string>
-        {
-            ["client_id"] = keycloak["ClientId"]!,
-            ["client_secret"] = keycloak["ClientSecret"]!,
-            ["grant_type"] = "refresh_token",
-            ["refresh_token"] = refreshToken
-        };
-
-        var response = await client.PostAsync(tokenEndpoint, new FormUrlEncodedContent(requestBody));
-
-        if (response.IsSuccessStatusCode)
-        {
-            var content = await response.Content.ReadFromJsonAsync<JsonElement>();
-            var newIdToken = content.GetProperty("id_token").GetString();
-
-            if (!string.IsNullOrWhiteSpace(newIdToken))
-            {
-                // 3. Store the fresh id_token for the sign-out process
-                props.StoreTokens(new[]
-                {
-                    new AuthenticationToken { Name = "id_token", Value = newIdToken }
-                });
-            }
-        }
-    }
-
-    // 4. Only sign out from Keycloak. The local cookie will be cleared in /logged-out.
-    await httpContext.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, props);
-});
-
-
-app.MapGet("/logged-out", async (HttpContext httpContext) =>
-{
-    // This endpoint is the redirect target from Keycloak.
-    // Now, we clear the local session cookie.
+    // Get the id_token directly from the user's authentication ticket
+    var authenticateResult = await httpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    
+    var idToken = authenticateResult?.Properties?.GetTokenValue("id_token");
+    
+    // Log for debugging
+    Console.WriteLine($"Logout initiated. ID Token found: {!string.IsNullOrWhiteSpace(idToken)}");
+    
+    // Sign out from both schemes
     await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-    return Results.Redirect("/");
+    
+    // Build the Keycloak logout URL manually
+    var keycloakAuthority = httpContext.RequestServices.GetRequiredService<IConfiguration>()["Keycloak:Authority"];
+    var clientId = httpContext.RequestServices.GetRequiredService<IConfiguration>()["Keycloak:ClientId"];
+    var postLogoutUri = "https://localhost:7235/";
+    
+    var logoutUrl = $"{keycloakAuthority}/protocol/openid-connect/logout?post_logout_redirect_uri={Uri.EscapeDataString(postLogoutUri)}&client_id={clientId}";
+    
+    // Only add id_token_hint if we have it
+    if (!string.IsNullOrWhiteSpace(idToken))
+    {
+        logoutUrl += $"&id_token_hint={Uri.EscapeDataString(idToken)}";
+    }
+    
+    return Results.Redirect(logoutUrl);
 });
-
 
 app.MapGet("/api/roles/user", [Authorize(Policy = "RequireAppUser")] (ClaimsPrincipal user) =>
 {
