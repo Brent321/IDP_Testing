@@ -52,8 +52,29 @@ public class AuthenticationController : ControllerBase
     {
         var authenticateResult = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         
-        var authScheme = authenticateResult?.Properties?.Items[".AuthScheme"];
-        var isSaml = authScheme == Saml2Defaults.Scheme;
+        // Check if user is authenticated
+        if (authenticateResult?.Succeeded != true)
+        {
+            return Redirect("/");
+        }
+
+        // Determine authentication mode from configuration as fallback
+        var authMode = _configuration["AuthenticationMode"]?.ToUpperInvariant() ?? "OIDC";
+        var isSaml = authMode == "SAML";
+        
+        // Try to detect SAML by checking for SAML-specific claims
+        if (authenticateResult.Principal?.Identity is System.Security.Claims.ClaimsIdentity claimsIdentity)
+        {
+            // SAML responses typically have claims with specific namespaces
+            var hasSamlClaims = claimsIdentity.Claims.Any(c => 
+                c.Type.StartsWith("http://schemas.xmlsoap.org/") || 
+                c.Type.StartsWith("http://schemas.microsoft.com/ws/2008/06/identity/claims/"));
+            
+            if (hasSamlClaims)
+            {
+                isSaml = true;
+            }
+        }
         
         if (isSaml)
         {
@@ -63,7 +84,8 @@ public class AuthenticationController : ControllerBase
                 Saml2Defaults.Scheme);
         }
         
-        var idToken = authenticateResult?.Properties?.GetTokenValue("id_token");
+        // OIDC logout
+        var idToken = authenticateResult.Properties?.GetTokenValue("id_token");
         
         Console.WriteLine($"Logout initiated. ID Token found: {!string.IsNullOrWhiteSpace(idToken)}");
         
