@@ -16,8 +16,10 @@ namespace OIDC_Testing.Extensions;
 
 public static class AuthenticationExtensions
 {
-    public static IServiceCollection AddCustomAuthentication(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
+    public static IServiceCollection AddCustomAuthentication(this IServiceCollection services, WebApplicationBuilder builder)
     {
+        var configuration = builder.Configuration;
+        var environment = builder.Environment;
         var authMode = configuration["AuthenticationMode"]?.ToUpperInvariant() ?? "OIDC";
 
         var authBuilder = services
