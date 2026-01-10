@@ -7,7 +7,6 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using OIDC_Testing.Components;
 using System.Security.Claims;
 using System.Text.Json;
-using OIDC_Testing.Endpoints;
 using Microsoft.AspNetCore.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -68,6 +67,8 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy("RequireAppUser", policy => policy.RequireRole("app-user"))
     .AddPolicy("RequireAppAdmin", policy => policy.RequireRole("app-admin"));
 
+builder.Services.AddControllers();
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -104,8 +105,7 @@ app.UseStatusCodePages(context =>
 
 app.UseAntiforgery();
 
-app.MapAuthenticationEndpoints();
-app.MapRoleEndpoints();
+app.MapControllers();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
