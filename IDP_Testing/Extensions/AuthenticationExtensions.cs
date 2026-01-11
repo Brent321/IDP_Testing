@@ -170,10 +170,10 @@ public static class AuthenticationExtensions
                     if (!string.IsNullOrWhiteSpace(saml2ConfigOptions.SigningCertificatePath) &&
                         File.Exists(saml2ConfigOptions.SigningCertificatePath))
                     {
-                        var certificate = new X509Certificate2(
+                        var certificate = X509CertificateLoader.LoadPkcs12FromFile(
                             saml2ConfigOptions.SigningCertificatePath,
                             saml2ConfigOptions.SigningCertificatePassword,
-                            X509KeyStorageFlags.MachineKeySet);
+                            X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet);
 
                         saml2Options.SPOptions.ServiceCertificates.Add(new ServiceCertificate
                         {
