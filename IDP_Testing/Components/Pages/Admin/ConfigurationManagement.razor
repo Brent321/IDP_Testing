@@ -38,12 +38,23 @@
             Database values override appsettings.json values.
         </div>
 
-        <div class="mb-3">
-            <input type="text" 
-                   class="form-control" 
-                   placeholder="Search configuration keys..." 
-                   @bind="searchFilter"
-                   @bind:event="oninput" />
+        <div class="mb-3 row">
+            <div class="col-md-8">
+                <input type="text" 
+                       class="form-control" 
+                       placeholder="Search configuration keys..." 
+                       @bind="searchFilter"
+                       @bind:event="oninput"
+                       @bind:after="ResetActivePage" />
+            </div>
+            <div class="col-md-4">
+                <select class="form-select" @bind="activePageSize" @bind:after="ResetActivePage">
+                    <option value="10">10 per page</option>
+                    <option value="25">25 per page</option>
+                    <option value="50">50 per page</option>
+                    <option value="100">100 per page</option>
+                </select>
+            </div>
         </div>
 
         <div class="table-responsive">
@@ -56,7 +67,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var config in GetFilteredActiveConfigurations())
+                    @foreach (var config in GetPagedActiveConfigurations())
                     {
                         <tr>
                             <td>
@@ -94,16 +105,45 @@
                     }
                 </tbody>
             </table>
-            
-            <p class="text-muted mt-2">
-                <i class="bi bi-info-circle"></i> Showing @GetFilteredActiveConfigurations().Count of @activeConfigurations.Count configuration values
-            </p>
         </div>
 
         @if (!GetFilteredActiveConfigurations().Any())
         {
             <div class="alert alert-warning">
                 No configuration values match your search.
+            </div>
+        }
+        else
+        {
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div>
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-info-circle"></i> 
+                        Showing @GetPagedActiveConfigurations().Count() of @GetFilteredActiveConfigurations().Count 
+                        (@activeConfigurations.Count total)
+                    </p>
+                </div>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item @(activeCurrentPage == 1 ? "disabled" : "")">
+                            <button class="page-link" @onclick="ActivePreviousPage" disabled="@(activeCurrentPage == 1)">
+                                <i class="bi bi-chevron-left"></i> Previous
+                            </button>
+                        </li>
+                        @for (int i = GetActiveStartPage(); i <= GetActiveEndPage(); i++)
+                        {
+                            var pageNum = i;  // ← Renamed to "pageNum" to avoid conflict
+                            <li class="page-item @(activeCurrentPage == pageNum ? "active" : "")">
+                                <button class="page-link" @onclick="() => GoToActivePage(pageNum)">@pageNum</button>
+                            </li>
+                        }
+                        <li class="page-item @(activeCurrentPage == GetActiveTotalPages() ? "disabled" : "")">
+                            <button class="page-link" @onclick="ActiveNextPage" disabled="@(activeCurrentPage == GetActiveTotalPages())">
+                                Next <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
             </div>
         }
     }
@@ -114,16 +154,34 @@
             Manage database configuration overrides. These values take precedence over appsettings.json.
         </div>
 
-        <div class="mb-3">
-            <button class="btn btn-success" @onclick="ShowAddModal">
-                <i class="bi bi-plus-circle"></i> Add Override
-            </button>
-            <button class="btn btn-warning" @onclick="ReloadConfiguration">
-                <i class="bi bi-arrow-clockwise"></i> Reload Configuration
-            </button>
-            <button class="btn btn-danger" @onclick="ResetToAppSettings">
-                <i class="bi bi-arrow-counterclockwise"></i> Reset All Overrides
-            </button>
+        <div class="mb-3 row">
+            <div class="col-md-4">
+                <button class="btn btn-success" @onclick="ShowAddModal">
+                    <i class="bi bi-plus-circle"></i> Add Override
+                </button>
+                <button class="btn btn-warning" @onclick="ReloadConfiguration">
+                    <i class="bi bi-arrow-clockwise"></i> Reload
+                </button>
+                <button class="btn btn-danger" @onclick="ResetToAppSettings">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset All
+                </button>
+            </div>
+            <div class="col-md-4">
+                <input type="text" 
+                       class="form-control" 
+                       placeholder="Search overrides..." 
+                       @bind="databaseSearchFilter"
+                       @bind:event="oninput"
+                       @bind:after="ResetDatabasePage" />
+            </div>
+            <div class="col-md-4">
+                <select class="form-select" @bind="databasePageSize" @bind:after="ResetDatabasePage">
+                    <option value="10">10 per page</option>
+                    <option value="25">25 per page</option>
+                    <option value="50">50 per page</option>
+                    <option value="100">100 per page</option>
+                </select>
+            </div>
         </div>
 
         @if (configurations == null)
@@ -134,10 +192,17 @@
                 </div>
             </div>
         }
-        else if (!configurations.Any())
+        else if (!GetFilteredDatabaseConfigurations().Any())
         {
             <div class="alert alert-info">
-                No database overrides configured. All values are loaded from appsettings.json.
+                @if (string.IsNullOrWhiteSpace(databaseSearchFilter))
+                {
+                    <text>No database overrides configured. All values are loaded from appsettings.json.</text>
+                }
+                else
+                {
+                    <text>No database overrides match your search.</text>
+                }
             </div>
         }
         else
@@ -153,7 +218,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var config in configurations)
+                        @foreach (var config in GetPagedDatabaseConfigurations())
                         {
                             <tr>
                                 <td><code>@config.Key</code></td>
@@ -182,6 +247,37 @@
                         }
                     </tbody>
                 </table>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div>
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-info-circle"></i> 
+                        Showing @GetPagedDatabaseConfigurations().Count() of @GetFilteredDatabaseConfigurations().Count 
+                        (@configurations.Count total)
+                    </p>
+                </div>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item @(databaseCurrentPage == 1 ? "disabled" : "")">
+                            <button class="page-link" @onclick="DatabasePreviousPage" disabled="@(databaseCurrentPage == 1)">
+                                <i class="bi bi-chevron-left"></i> Previous
+                            </button>
+                        </li>
+                        @for (int i = GetDatabaseStartPage(); i <= GetDatabaseEndPage(); i++)
+                        {
+                            var pageNum = i;
+                            <li class="page-item @(databaseCurrentPage == pageNum ? "active" : "")">
+                                <button class="page-link" @onclick="() => GoToDatabasePage(pageNum)">@pageNum</button>
+                            </li>
+                        }
+                        <li class="page-item @(databaseCurrentPage == GetDatabaseTotalPages() ? "disabled" : "")">
+                            <button class="page-link" @onclick="DatabaseNextPage" disabled="@(databaseCurrentPage == GetDatabaseTotalPages())">
+                                Next <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
             </div>
         }
     }
@@ -241,7 +337,16 @@
     private string currentKey = string.Empty;
     private string? currentValue;
     private string activeTab = "active";
+    
+    // Active Configuration pagination
     private string searchFilter = string.Empty;
+    private int activeCurrentPage = 1;
+    private int activePageSize = 25;
+    
+    // Database Overrides pagination
+    private string databaseSearchFilter = string.Empty;
+    private int databaseCurrentPage = 1;
+    private int databasePageSize = 25;
 
     private class ActiveConfigurationItem
     {
@@ -315,6 +420,7 @@
         }
     }
 
+    // Active Configuration filtering and pagination
     private List<ActiveConfigurationItem> GetFilteredActiveConfigurations()
     {
         if (string.IsNullOrWhiteSpace(searchFilter))
@@ -324,6 +430,129 @@
             .Where(c => c.Key.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
                        (c.Value?.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ?? false))
             .ToList();
+    }
+
+    private IEnumerable<ActiveConfigurationItem> GetPagedActiveConfigurations()
+    {
+        var filtered = GetFilteredActiveConfigurations();
+        return filtered
+            .Skip((activeCurrentPage - 1) * activePageSize)
+            .Take(activePageSize);
+    }
+
+    private int GetActiveTotalPages()
+    {
+        var filtered = GetFilteredActiveConfigurations();
+        return (int)Math.Ceiling(filtered.Count / (double)activePageSize);
+    }
+
+    private int GetActiveStartPage()
+    {
+        var totalPages = GetActiveTotalPages();
+        if (totalPages <= 7) return 1;
+        
+        var start = activeCurrentPage - 3;
+        return Math.Max(1, Math.Min(start, totalPages - 6));
+    }
+
+    private int GetActiveEndPage()
+    {
+        var totalPages = GetActiveTotalPages();
+        if (totalPages <= 7) return totalPages;
+        
+        var end = activeCurrentPage + 3;
+        return Math.Min(totalPages, Math.Max(7, end));
+    }
+
+    private void ActivePreviousPage()
+    {
+        if (activeCurrentPage > 1)
+            activeCurrentPage--;
+    }
+
+    private void ActiveNextPage()
+    {
+        if (activeCurrentPage < GetActiveTotalPages())
+            activeCurrentPage++;
+    }
+
+    private void GoToActivePage(int page)
+    {
+        activeCurrentPage = page;
+    }
+
+    private void ResetActivePage()
+    {
+        activeCurrentPage = 1;
+    }
+
+    // Database Configuration filtering and pagination
+    private List<ConfigurationEntry> GetFilteredDatabaseConfigurations()
+    {
+        if (configurations == null)
+            return new List<ConfigurationEntry>();
+
+        if (string.IsNullOrWhiteSpace(databaseSearchFilter))
+            return configurations;
+
+        return configurations
+            .Where(c => c.Key.Contains(databaseSearchFilter, StringComparison.OrdinalIgnoreCase) ||
+                       (c.Value?.Contains(databaseSearchFilter, StringComparison.OrdinalIgnoreCase) ?? false))
+            .ToList();
+    }
+
+    private IEnumerable<ConfigurationEntry> GetPagedDatabaseConfigurations()
+    {
+        var filtered = GetFilteredDatabaseConfigurations();
+        return filtered
+            .Skip((databaseCurrentPage - 1) * databasePageSize)
+            .Take(databasePageSize);
+    }
+
+    private int GetDatabaseTotalPages()
+    {
+        var filtered = GetFilteredDatabaseConfigurations();
+        return (int)Math.Ceiling(filtered.Count / (double)databasePageSize);
+    }
+
+    private int GetDatabaseStartPage()
+    {
+        var totalPages = GetDatabaseTotalPages();
+        if (totalPages <= 7) return 1;
+        
+        var start = databaseCurrentPage - 3;
+        return Math.Max(1, Math.Min(start, totalPages - 6));
+    }
+
+    private int GetDatabaseEndPage()
+    {
+        var totalPages = GetDatabaseTotalPages();
+        if (totalPages <= 7) return totalPages;
+        
+        var end = databaseCurrentPage + 3;
+        return Math.Min(totalPages, Math.Max(7, end));
+    }
+
+    private void DatabasePreviousPage()
+    {
+        if (databaseCurrentPage > 1)
+            databaseCurrentPage--;
+    }
+
+    private void DatabaseNextPage()
+    {
+        if (databaseCurrentPage < GetDatabaseTotalPages())
+            databaseCurrentPage++;
+    }
+
+    private void GoToDatabasePage(int page)
+    {
+        databaseCurrentPage = page;
+    }
+
+    private void ResetDatabasePage()
+    {
+        databaseCurrentPage = 1;
     }
 
     private bool IsSensitiveKey(string key)
