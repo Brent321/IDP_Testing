@@ -7,7 +7,7 @@ namespace IDP_Testing.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "app-admin")]
 public class ConfigurationController : ControllerBase
 {
     private readonly IConfigurationService _configService;

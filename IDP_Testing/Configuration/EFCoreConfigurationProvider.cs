@@ -1,6 +1,5 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using IDP_Testing.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace IDP_Testing.Configuration;
 

@@ -1,12 +1,32 @@
 using IDP_Testing.Components;
+using IDP_Testing.Configuration;
+using IDP_Testing.Data;
 using IDP_Testing.Extensions;
+using IDP_Testing.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Get connection string for EF Core
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+// Add EF Core Configuration Provider BEFORE other services
+// This allows configuration values to be loaded from the database
+builder.Configuration.AddEFCoreConfiguration(options =>
+    options.UseSqlServer(connectionString));
 
 builder.Services.AddCustomAuthentication(builder);
 builder.Services.AddCustomAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddBlazorServices();
+
+// Add DbContext for configuration storage
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(connectionString));
+
+// Add Configuration Service for managing database configurations
+builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
 
 // Add session services
 builder.Services.AddDistributedMemoryCache();

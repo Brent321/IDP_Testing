@@ -36,9 +36,15 @@ public class AuthenticationController : ControllerBase
 
         _logger.LogInformation("Login initiated with scheme: {Scheme}, redirect: {RedirectUri}", authScheme, redirectUri);
 
-        return Challenge(
-            new AuthenticationProperties { RedirectUri = redirectUri },
-            authScheme);
+        var authProperties = new AuthenticationProperties { RedirectUri = redirectUri };
+        
+        // Force Keycloak to show login screen by adding prompt=login
+        if (authScheme == OpenIdConnectDefaults.AuthenticationScheme)
+        {
+            authProperties.Items["prompt"] = "login";
+        }
+
+        return Challenge(authProperties, authScheme);
     }
 
     [HttpGet("login-oidc")]
@@ -48,9 +54,16 @@ public class AuthenticationController : ControllerBase
 
         _logger.LogInformation("OIDC login initiated, redirect: {RedirectUri}", redirectUri);
 
-        return Challenge(
-            new AuthenticationProperties { RedirectUri = redirectUri },
-            OpenIdConnectDefaults.AuthenticationScheme);
+        var authProperties = new AuthenticationProperties 
+        { 
+            RedirectUri = redirectUri,
+            Items =
+            {
+                ["prompt"] = "login" // Force Keycloak to show login screen
+            }
+        };
+
+        return Challenge(authProperties, OpenIdConnectDefaults.AuthenticationScheme);
     }
 
     [HttpGet("login-saml")]
@@ -102,20 +115,36 @@ public class AuthenticationController : ControllerBase
                 Saml2Defaults.Scheme);
         }
 
+        // OIDC Logout - properly terminate Keycloak session
         var idToken = authenticateResult.Properties?.GetTokenValue("id_token");
 
         _logger.LogInformation("OIDC logout initiated for user: {UserName}, ID Token present: {HasIdToken}",
             userName, !string.IsNullOrWhiteSpace(idToken));
 
+        // Sign out from local cookie first
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        
+        // Sign out from OIDC to trigger proper cleanup
+        await HttpContext.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
 
+        // Build Keycloak logout URL with all necessary parameters
         var postLogoutUri = _keycloakOptions.PostLogoutRedirectUri;
-        var logoutUrl = $"{_keycloakOptions.Authority}/protocol/openid-connect/logout?post_logout_redirect_uri={Uri.EscapeDataString(postLogoutUri)}&client_id={_keycloakOptions.ClientId}";
+        var logoutUrl = $"{_keycloakOptions.Authority}/protocol/openid-connect/logout";
+        
+        var queryParams = new List<string>
+        {
+            $"post_logout_redirect_uri={Uri.EscapeDataString(postLogoutUri)}",
+            $"client_id={Uri.EscapeDataString(_keycloakOptions.ClientId)}"
+        };
 
         if (!string.IsNullOrWhiteSpace(idToken))
         {
-            logoutUrl += $"&id_token_hint={Uri.EscapeDataString(idToken)}";
+            queryParams.Add($"id_token_hint={Uri.EscapeDataString(idToken)}");
         }
+
+        logoutUrl += "?" + string.Join("&", queryParams);
+
+        _logger.LogInformation("Redirecting to Keycloak logout: {LogoutUrl}", logoutUrl);
 
         return Redirect(logoutUrl);
     }

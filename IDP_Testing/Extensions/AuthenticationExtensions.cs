@@ -42,6 +42,8 @@ public static class AuthenticationExtensions
                 options.Cookie.Name = ".AspNetCore.Cookies";
                 options.ExpireTimeSpan = TimeSpan.FromHours(1);
                 options.SlidingExpiration = true;
+                options.Cookie.SameSite = SameSiteMode.Lax;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             });
 
         // Always add both authentication schemes
@@ -83,6 +85,38 @@ public static class AuthenticationExtensions
 
                 oidcOptions.CallbackPath = keycloakOptions.CallbackPath;
 
+                // Handle redirect to identity provider for login
+                oidcOptions.Events.OnRedirectToIdentityProvider = context =>
+                {
+                    // Check if we want to force re-authentication
+                    if (context.Properties.Items.TryGetValue("prompt", out var promptValue))
+                    {
+                        context.ProtocolMessage.Prompt = promptValue;
+                    }
+                    
+                    return Task.CompletedTask;
+                };
+
+                // Handle redirect to identity provider for sign out
+                oidcOptions.Events.OnRedirectToIdentityProviderForSignOut = context =>
+                {
+                    // Get the id_token from the authentication properties
+                    var idToken = context.Properties.GetTokenValue("id_token");
+                    if (!string.IsNullOrWhiteSpace(idToken))
+                    {
+                        context.ProtocolMessage.IdTokenHint = idToken;
+                    }
+
+                    // Ensure post_logout_redirect_uri is set
+                    if (string.IsNullOrEmpty(context.ProtocolMessage.PostLogoutRedirectUri))
+                    {
+                        context.ProtocolMessage.PostLogoutRedirectUri = keycloakOptions.PostLogoutRedirectUri;
+                    }
+
+                    return Task.CompletedTask;
+                };
+
+                // Handle token validation
                 oidcOptions.Events.OnTokenValidated = context =>
                 {
                     if (context.Principal?.Identity is ClaimsIdentity identity)
@@ -98,6 +132,15 @@ public static class AuthenticationExtensions
                         }
                     }
 
+                    return Task.CompletedTask;
+                };
+
+                // Handle sign out
+                oidcOptions.Events.OnSignedOutCallbackRedirect = context =>
+                {
+                    // Prevent automatic redirect, let the controller handle it
+                    context.HandleResponse();
+                    context.Response.Redirect(context.Options.SignedOutRedirectUri);
                     return Task.CompletedTask;
                 };
             })
