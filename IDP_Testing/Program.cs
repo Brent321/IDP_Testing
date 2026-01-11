@@ -1,5 +1,5 @@
-using OIDC_Testing.Components;
-using OIDC_Testing.Extensions;
+using IDP_Testing.Components;
+using IDP_Testing.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 

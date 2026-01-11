@@ -1,4 +1,4 @@
-namespace OIDC_Testing.Configuration;
+namespace IDP_Testing.Configuration;
 
 public class AuthenticationModeOptions
 {

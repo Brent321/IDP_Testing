@@ -4,5 +4,5 @@
     <File Path="keycloak/blazor-app-client.json" />
     <File Path="keycloak/realm-export.json" />
   </Folder>
-  <Project Path="OIDC_Testing/OIDC_Testing.csproj" />
+  <Project Path="IDP_Testing/IDP_Testing.csproj" />
 </Solution>

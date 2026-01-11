@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using OIDC_Testing.Configuration;
-using OIDC_Testing.Services;
+using IDP_Testing.Configuration;
+using IDP_Testing.Services;
 using Sustainsys.Saml2;
 using Sustainsys.Saml2.AspNetCore2;
 using Sustainsys.Saml2.Configuration;
@@ -16,7 +16,7 @@ using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 
 
-namespace OIDC_Testing.Extensions;
+namespace IDP_Testing.Extensions;
 
 public static class AuthenticationExtensions
 {

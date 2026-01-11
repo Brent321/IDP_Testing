@@ -2,7 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text.Json;
 
-namespace OIDC_Testing.Services;
+namespace IDP_Testing.Services;
 
 public static class KeycloakRoleMapper
 {

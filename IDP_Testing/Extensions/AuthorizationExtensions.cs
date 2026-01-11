@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
 
-namespace OIDC_Testing.Extensions;
+namespace IDP_Testing.Extensions;
 
 public static class AuthorizationExtensions
 {

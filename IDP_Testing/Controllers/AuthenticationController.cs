@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using OIDC_Testing.Configuration;
+using IDP_Testing.Configuration;
 using Sustainsys.Saml2.AspNetCore2;
 
-namespace OIDC_Testing.Controllers;
+namespace IDP_Testing.Controllers;
 
 [ApiController]
 [Route("[controller]")]

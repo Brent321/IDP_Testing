@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 
-namespace OIDC_Testing.Extensions;
+namespace IDP_Testing.Extensions;
 
 public static class BlazorExtensions
 {

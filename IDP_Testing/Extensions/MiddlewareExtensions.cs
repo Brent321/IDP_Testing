@@ -1,4 +1,4 @@
-namespace OIDC_Testing.Extensions;
+namespace IDP_Testing.Extensions;
 
 public static class MiddlewareExtensions
 {

@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace OIDC_Testing.Controllers;
+namespace IDP_Testing.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
