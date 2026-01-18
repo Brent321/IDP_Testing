@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authentication.WsFederation;
@@ -57,8 +57,10 @@ public static class AuthenticationExtensions
 
     private static AuthenticationBuilder AddOidcAuthentication(this AuthenticationBuilder authBuilder)
     {
-        return authBuilder.AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options => { })
-            .Services.AddOptions<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme)
+        return authBuilder
+            .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options => { })
+            .Services
+            .AddOptions<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme)
             .Configure<IOptions<KeycloakOptions>>((oidcOptions, keycloakOptionsAccessor) =>
             {
                 var keycloakOptions = keycloakOptionsAccessor.Value;
@@ -102,11 +104,26 @@ public static class AuthenticationExtensions
                 // Handle redirect to identity provider for sign out
                 oidcOptions.Events.OnRedirectToIdentityProviderForSignOut = context =>
                 {
-                    // Get the id_token from the authentication properties
-                    var idToken = context.Properties.GetTokenValue("id_token");
+                    Console.WriteLine($"🔍 Event fired - Properties.Items count: {context.Properties?.Items?.Count ?? 0}");
+    
+                    // Try to get the id_token from Items first (passed from controller)
+                    string? idToken = null;
+    
+                    if (context.Properties?.Items?.TryGetValue("id_token", out var itemToken) == true)
+                    {
+                        idToken = itemToken;
+                        Console.WriteLine("Found id_token in Items");
+                    }
+    
+                    // Set the id_token_hint if we have it
                     if (!string.IsNullOrWhiteSpace(idToken))
                     {
                         context.ProtocolMessage.IdTokenHint = idToken;
+                        Console.WriteLine("✅ Set IdTokenHint on protocol message");
+                    }
+                    else
+                    {
+                        Console.WriteLine("⚠️ Warning: id_token not found during logout");
                     }
 
                     // Ensure post_logout_redirect_uri is set
@@ -114,7 +131,7 @@ public static class AuthenticationExtensions
                     {
                         context.ProtocolMessage.PostLogoutRedirectUri = keycloakOptions.PostLogoutRedirectUri;
                     }
-
+    
                     return Task.CompletedTask;
                 };
 
@@ -137,12 +154,11 @@ public static class AuthenticationExtensions
                     return Task.CompletedTask;
                 };
 
-                // Handle sign out
+                // Handle sign out callback
                 oidcOptions.Events.OnSignedOutCallbackRedirect = context =>
                 {
-                    // Prevent automatic redirect, let the controller handle it
+                    context.Response.Redirect(keycloakOptions.PostLogoutRedirectUri);
                     context.HandleResponse();
-                    context.Response.Redirect(context.Options.SignedOutRedirectUri);
                     return Task.CompletedTask;
                 };
             })

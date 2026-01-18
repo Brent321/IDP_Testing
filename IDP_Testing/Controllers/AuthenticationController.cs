@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authentication.WsFederation;
@@ -19,7 +19,7 @@ public class AuthenticationController : Controller
             "oidc" or "keycloak" => OpenIdConnectDefaults.AuthenticationScheme,
             "saml" or "saml2" => Saml2Defaults.Scheme,
             "wsfed" or "adfs" => WsFederationDefaults.AuthenticationScheme,
-            _ => OpenIdConnectDefaults.AuthenticationScheme // Default
+            _ => OpenIdConnectDefaults.AuthenticationScheme
         };
 
         var properties = new AuthenticationProperties
@@ -33,8 +33,20 @@ public class AuthenticationController : Controller
     [HttpGet("logout")]
     public async Task<IActionResult> Logout()
     {
-        var authenticationType = User.Identity?.AuthenticationType;
+        // Prevent double-processing: if user is not authenticated, just redirect
+        if (User.Identity?.IsAuthenticated != true)
+        {
+            Console.WriteLine("Logout called but user not authenticated - redirecting home");
+            return Redirect("~/");
+        }
+
+        // Get the id_token BEFORE any sign out
+        var idToken = await HttpContext.GetTokenAsync("id_token");
+        Console.WriteLine($"id_token before logout: {(string.IsNullOrEmpty(idToken) ? "NULL" : "present")}");
         
+        var authenticationType = User.Identity?.AuthenticationType;
+        Console.WriteLine($"Authentication type: {authenticationType}");
+
         // Determine which scheme was used for authentication
         var scheme = authenticationType switch
         {
@@ -43,14 +55,20 @@ public class AuthenticationController : Controller
             _ => OpenIdConnectDefaults.AuthenticationScheme
         };
 
-        // Sign out from cookie
-        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-
-        // Sign out from the identity provider
-        return SignOut(new AuthenticationProperties
+        // Build authentication properties with the id_token
+        var properties = new AuthenticationProperties
         {
             RedirectUri = Url.Content("~/")
-        }, scheme);
+        };
+
+        // Store the id_token in Items for OIDC logout
+        if (scheme == OpenIdConnectDefaults.AuthenticationScheme && !string.IsNullOrWhiteSpace(idToken))
+        {
+            properties.Items["id_token"] = idToken;
+            Console.WriteLine("Stored id_token in properties.Items");
+        }
+
+        return SignOut(properties, scheme, CookieAuthenticationDefaults.AuthenticationScheme);
     }
 
     [HttpGet("signout-callback-oidc")]

@@ -27,6 +27,7 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
       "redirectUris": [
         "https://localhost:7235/signin-oidc"
       ],
@@ -34,7 +35,10 @@
         "https://localhost:7235"
       ],
       "attributes": {
-        "post.logout.redirect.uris": "https://localhost:7235/*"
+        "post.logout.redirect.uris": "https://localhost:7235/*",
+        "frontchannel.logout.url": "https://localhost:7235/signout-callback-oidc",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "true"
       },
       "protocolMappers": [
         {
