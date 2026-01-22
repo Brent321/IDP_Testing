@@ -1,0 +1,47 @@
+@* This is a simple test component that can be dynamically loaded as a plugin *@
+
+<div class="test-plugin-component card shadow-sm">
+    <div class="card-header bg-info text-white">
+        <h4 class="mb-0">
+            <i class="bi bi-puzzle-fill"></i> Test Plugin Component
+        </h4>
+    </div>
+    <div class="card-body">
+        <p class="lead">
+            This component was dynamically loaded from <code>TestBlazorPlugin.dll</code>
+        </p>
+        
+        <div class="alert alert-success">
+            <i class="bi bi-check-circle-fill"></i> 
+            Plugin successfully loaded and rendered!
+        </div>
+
+        <div class="mt-3">
+            <button class="btn btn-primary" @onclick="IncrementCounter">
+                Click me
+            </button>
+            <span class="ms-3">
+                Counter: <strong>@currentCount</strong>
+            </span>
+        </div>
+
+        <div class="mt-3 text-muted small">
+            <p><strong>Assembly:</strong> @AssemblyName</p>
+            <p><strong>Version:</strong> @AssemblyVersion</p>
+            <p><strong>Loaded at:</strong> @loadedTime</p>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int currentCount = 0;
+    private string loadedTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+    
+    private string AssemblyName => GetType().Assembly.GetName().Name ?? "Unknown";
+    private string AssemblyVersion => GetType().Assembly.GetName().Version?.ToString() ?? "Unknown";
+
+    private void IncrementCounter()
+    {
+        currentCount++;
+    }
+}

@@ -4,5 +4,7 @@
     <File Path="keycloak/blazor-app-client.json" />
     <File Path="keycloak/realm-export.json" />
   </Folder>
+  <Project Path="IDP_Testing.PlaywrightTests/IDP_Testing.PlaywrightTests.csproj" Id="a2eac23b-3fef-4c1d-8633-07bb2977c3d5" />
   <Project Path="IDP_Testing/IDP_Testing.csproj" />
+  <Project Path="TestBlazorPlugin/TestBlazorPlugin.csproj" />
 </Solution>

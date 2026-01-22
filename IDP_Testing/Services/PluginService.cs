@@ -10,6 +10,7 @@ public class PluginService
     private readonly List<Assembly> _loadedAssemblies = new();
 
     public IReadOnlyList<Assembly> LoadedAssemblies => _loadedAssemblies.AsReadOnly();
+    public event Action? OnPluginLoaded;
 
     public PluginService(IWebHostEnvironment env, ILogger<PluginService> logger)
     {
@@ -21,6 +22,8 @@ public class PluginService
         {
             Directory.CreateDirectory(_pluginsPath);
         }
+        
+        _logger.LogInformation("PluginService initialized. Plugins path: {Path}", _pluginsPath);
     }
 
     public void LoadPlugins()
@@ -28,76 +31,99 @@ public class PluginService
         _logger.LogInformation("Loading plugins from {Path}", _pluginsPath);
         
         var dllFiles = Directory.GetFiles(_pluginsPath, "*.dll");
+        _logger.LogInformation("Found {Count} DLL files in plugins directory", dllFiles.Length);
+        
         foreach (var dllPath in dllFiles)
         {
             try
             {
-                // Basic loading. For more isolation, use AssemblyLoadContext.
-                // Note: On Windows, this may lock the file. 
                 var assembly = Assembly.LoadFrom(dllPath);
                 
-                // Check if it has any razor components (optional check)
                 if (!_loadedAssemblies.Contains(assembly))
                 {
                     _loadedAssemblies.Add(assembly);
-                    _logger.LogInformation("Loaded plugin assembly: {Name}", assembly.FullName);
+                    _logger.LogInformation("Loaded plugin assembly: {Name} from {Path}", assembly.FullName, dllPath);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to load plugin: {Path}", dllPath);
+                _logger.LogError(ex, "Failed to load plugin from {Path}", dllPath);
             }
         }
+        
+        _logger.LogInformation("Total plugins loaded: {Count}", _loadedAssemblies.Count);
     }
 
     public async Task UploadPluginAsync(Stream stream, string filename)
     {
-        // Security Warning: detailed validation of the assembly should happen here.
-        // For now, we only allow .dll extension.
+        _logger.LogInformation("=== UploadPluginAsync START === File: {Filename}", filename);
+        
+        // Validate file extension
         if (!filename.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
         {
+            _logger.LogWarning("Rejected non-DLL file: {Filename}", filename);
             throw new ArgumentException("Only .dll files are allowed.");
         }
 
-        // To avoid file locking issues on update, typically you might use versioned names 
-        // or shadow copying. For this simple implementation, we assume new filenames.
         var filePath = Path.Combine(_pluginsPath, filename);
+        _logger.LogInformation("Target path: {Path}", filePath);
 
-        // If file exists, we can't overwrite it while it's loaded in .NET Core (usually).
-        // A simple strategy is to append a timestamp if it exists, or fail.
+        // Handle existing files by appending timestamp
         if (File.Exists(filePath))
         {
              var nameWithoutExt = Path.GetFileNameWithoutExtension(filename);
              var ext = Path.GetExtension(filename);
              filename = $"{nameWithoutExt}_{DateTime.UtcNow.Ticks}{ext}";
              filePath = Path.Combine(_pluginsPath, filename);
+             _logger.LogInformation("File exists, renamed to: {Filename}", filename);
         }
 
-        using (var fileStream = new FileStream(filePath, FileMode.Create))
-        {
-            await stream.CopyToAsync(fileStream);
-        }
-
-        _logger.LogInformation("Plugin uploaded to {Path}", filePath);
-        
-        // Attempt to load immediately
+        // Save the file
         try
         {
-            var assembly = Assembly.LoadFrom(filePath);
-            _loadedAssemblies.Add(assembly);
-            
-            // Note: Components/Router might need a refresh to pick this up immediately.
-            // In Blazor Server, the Router usually listens to state changes if wired up, 
-            // but standard Router doesn't automatically watch a list. 
-            // We might need to trigger a UI refresh or user might need to reload page.
-            OnPluginLoaded?.Invoke(); 
+            _logger.LogInformation("Saving file to disk...");
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                await stream.CopyToAsync(fileStream);
+            }
+            _logger.LogInformation("File saved successfully");
         }
         catch (Exception ex)
         {
-             _logger.LogError(ex, "Failed to load uploaded plugin immediately.");
-             // Depending on needs, might delete the bad file here.
+            _logger.LogError(ex, "Failed to save file");
+            throw new IOException($"Failed to save file: {ex.Message}", ex);
+        }
+        
+        // Attempt to load the assembly immediately
+        try
+        {
+            _logger.LogInformation("Loading assembly from: {Path}", filePath);
+            var assembly = Assembly.LoadFrom(filePath);
+            _loadedAssemblies.Add(assembly);
+            _logger.LogInformation("Assembly loaded successfully: {Name}, Version: {Version}", 
+                assembly.GetName().Name, assembly.GetName().Version);
+            
+            // Notify subscribers that a plugin was loaded
+            OnPluginLoaded?.Invoke();
+            _logger.LogInformation("=== UploadPluginAsync SUCCESS ===");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load assembly");
+            
+            // Delete the file if it can't be loaded
+            try
+            {
+                File.Delete(filePath);
+                _logger.LogInformation("Deleted invalid file: {Path}", filePath);
+            }
+            catch (Exception deleteEx)
+            {
+                _logger.LogError(deleteEx, "Failed to delete file");
+            }
+            
+            // Re-throw the exception so the UI can display the error
+            throw new InvalidOperationException($"Failed to load plugin: {ex.Message}", ex);
         }
     }
-    
-    public event Action? OnPluginLoaded;
 }

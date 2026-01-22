@@ -1,4 +1,5 @@
 @page "/admin/plugins"
+@rendermode InteractiveServer
 @using IDP_Testing.Services
 @using System.Reflection
 @inject PluginService PluginService
@@ -83,22 +84,31 @@
 
     private async Task LoadFiles(InputFileChangeEventArgs e)
     {
+        Logger.LogInformation("=== LoadFiles method called ===");
         uploading = true;
         statusMessage = "";
+        statusClass = "";
+        StateHasChanged();
         
         try
         {
             var file = e.File;
-            if (file == null) return;
+            if (file == null)
+            {
+                Logger.LogWarning("File is null!");
+                statusMessage = "Error: No file selected";
+                statusClass = "alert-danger";
+                return;
+            }
 
-            // Limit size to 10MB
-            long maxFileSize = 1024 * 1024 * 10; 
+            long maxFileSize = 1024 * 1024 * 10;
             
             using var stream = file.OpenReadStream(maxFileSize);
             await PluginService.UploadPluginAsync(stream, file.Name);
 
             statusMessage = $"Successfully uploaded {file.Name}. Reloading context...";
             statusClass = "alert-success";
+            Logger.LogInformation("Upload successful");
         }
         catch (Exception ex)
         {
@@ -109,7 +119,6 @@
         finally
         {
             uploading = false;
-            // Force re-render to show new list
             StateHasChanged();
         }
     }
