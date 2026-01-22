@@ -375,3 +375,4 @@ react-front-end/coverage/
 .env.development.local
 .env.test.local
 .env.production.local
+/IDP_Testing/Plugins
