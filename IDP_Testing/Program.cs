@@ -11,6 +11,12 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
+// Get frontend mode from configuration
+var frontendMode = Enum.TryParse<FrontendMode>(
+    builder.Configuration["FrontendMode"], 
+    ignoreCase: true, 
+    out var mode) ? mode : FrontendMode.Blazor;
+
 // Add EF Core Configuration Provider BEFORE other services
 // This allows configuration values to be loaded from the database
 builder.Configuration.AddEFCoreConfiguration(options =>
@@ -19,7 +25,12 @@ builder.Configuration.AddEFCoreConfiguration(options =>
 builder.Services.AddCustomAuthentication(builder);
 builder.Services.AddCustomAuthorization();
 builder.Services.AddControllers();
-builder.Services.AddBlazorServices();
+
+// Conditionally add Blazor services
+if (frontendMode == FrontendMode.Blazor)
+{
+    builder.Services.AddBlazorServices();
+}
 
 // Add DbContext for configuration storage
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -37,6 +48,8 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 });
+
+builder.Services.AddAntiforgery();
 
 var app = builder.Build();
 
@@ -60,8 +73,21 @@ app.UseAntiforgery();
 
 app.MapControllers();
 
-app.MapStaticAssets();
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+// Conditionally configure frontend
+if (frontendMode == FrontendMode.React)
+{
+    // Serve React static files from wwwroot/react
+    app.UseStaticFiles();
+    
+    // SPA fallback - serve index.html for React routes
+    app.MapFallbackToFile("react/index.html");
+}
+else
+{
+    // Blazor frontend
+    app.MapStaticAssets();
+    app.MapRazorComponents<App>()
+        .AddInteractiveServerRenderMode();
+}
 
 app.Run();
