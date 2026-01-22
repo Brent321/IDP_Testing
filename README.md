@@ -70,7 +70,7 @@ dotnet run
 
 ---
 
-## 🖥️ Usage
+## Usage
 
 ### Default Routes
 - **Home**: `https://localhost:7235/` (Blazor Homepage)
