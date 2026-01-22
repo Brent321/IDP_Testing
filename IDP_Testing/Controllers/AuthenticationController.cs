@@ -11,12 +11,14 @@ namespace IDP_Testing.Controllers;
 public class AuthenticationController : Controller
 {
     private readonly string _authenticationScheme;
+    private readonly ILogger<AuthenticationController> _logger;
 
-    public AuthenticationController(IOptions<AuthenticationOptions> authOptions)
+    public AuthenticationController(IOptions<AuthenticationOptions> authOptions, ILogger<AuthenticationController> logger)
     {
         // The DefaultChallengeScheme is set based on the configured mode
         _authenticationScheme = authOptions.Value.DefaultChallengeScheme 
             ?? throw new InvalidOperationException("No authentication scheme configured");
+        _logger = logger;
     }
 
     [HttpGet("login")]
@@ -27,7 +29,7 @@ public class AuthenticationController : Controller
             RedirectUri = returnUrl ?? Url.Content("~/")
         };
 
-        Console.WriteLine($"Login initiated with scheme: {_authenticationScheme}");
+        _logger.LogInformation("Login initiated with scheme: {Scheme}", _authenticationScheme);
 
         return Challenge(properties, _authenticationScheme);
     }
@@ -37,7 +39,7 @@ public class AuthenticationController : Controller
     {
         if (User.Identity?.IsAuthenticated != true)
         {
-            Console.WriteLine("Logout called but user not authenticated - redirecting home");
+            _logger.LogInformation("Logout called but user not authenticated - redirecting home");
             return Redirect(returnUrl ?? "~/");
         }
 
@@ -53,11 +55,11 @@ public class AuthenticationController : Controller
              });
         }
 
-        Console.WriteLine($"Logout initiated with scheme: {_authenticationScheme}");
+        _logger.LogInformation("Logout initiated with scheme: {Scheme}", _authenticationScheme);
 
         // Get the id_token for OIDC logout
         var idToken = await HttpContext.GetTokenAsync("id_token");
-        Console.WriteLine($"id_token before logout: {(string.IsNullOrEmpty(idToken) ? "NULL" : "present")}");
+        _logger.LogDebug("id_token before logout: {IdTokenStatus}", string.IsNullOrEmpty(idToken) ? "NULL" : "present");
 
         var properties = new AuthenticationProperties
         {
@@ -68,7 +70,7 @@ public class AuthenticationController : Controller
         if (!string.IsNullOrWhiteSpace(idToken))
         {
             properties.Items["id_token"] = idToken;
-            Console.WriteLine("Stored id_token in properties.Items");
+            _logger.LogDebug("Stored id_token in properties.Items");
         }
 
         return SignOut(properties, _authenticationScheme, CookieAuthenticationDefaults.AuthenticationScheme);

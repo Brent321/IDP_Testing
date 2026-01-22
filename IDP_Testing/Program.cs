@@ -4,6 +4,7 @@ using IDP_Testing.Data;
 using IDP_Testing.Extensions;
 using IDP_Testing.Services;
 using Microsoft.EntityFrameworkCore;
+using System;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,6 +64,11 @@ builder.Services.AddSession(options =>
 // Register Antiforgery token services for form security
 builder.Services.AddAntiforgery();
 
+// Configure React Development Proxy (with YARP and Hot Reload)
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddReactDevelopmentProxy(builder.Environment);
+}
 var app = builder.Build();
 
 // ==============================================================================
@@ -103,7 +109,13 @@ app.MapControllers();
 // Serve static files (css, js, images) to support both Blazor and React assets
 app.UseStaticFiles();
 
-// REACT FRONTEND SUPPORT:
+// In Development, proxy /react requests to the Vite Dev Server
+if (app.Environment.IsDevelopment())
+{
+    app.MapReverseProxy();
+}
+
+// REACT FRONTEND SUPPORT (Production Fallback):
 // Map the React SPA fallback for any requests starting with /react
 // If a request matches /react/... and isn't a file, serve index.html
 app.MapFallbackToFile("react/{**slug}", "react/index.html");
