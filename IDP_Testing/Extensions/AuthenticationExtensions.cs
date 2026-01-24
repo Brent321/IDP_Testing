@@ -129,6 +129,9 @@ public static class AuthenticationExtensions
                 oidcOptions.MapInboundClaims = false;
                 oidcOptions.TokenValidationParameters.NameClaimType = "preferred_username";
                 oidcOptions.TokenValidationParameters.RoleClaimType = "roles";
+                
+                // Disable PAR to assist with debugging redirect_uri issues
+                oidcOptions.PushedAuthorizationBehavior = PushedAuthorizationBehavior.Disable;
 
                 oidcOptions.Scope.Clear();
                 oidcOptions.Scope.Add("openid");
@@ -145,6 +148,9 @@ public static class AuthenticationExtensions
                 // Handle redirect to identity provider for login
                 oidcOptions.Events.OnRedirectToIdentityProvider = context =>
                 {
+                    // Log the Redirect URI for debugging
+                    Console.WriteLine($"Initiating Login. Redirect URI: {context.ProtocolMessage.RedirectUri}");
+
                     if (context.Properties.Items.TryGetValue("prompt", out var promptValue))
                     {
                         context.ProtocolMessage.Prompt = promptValue;
@@ -176,10 +182,13 @@ public static class AuthenticationExtensions
                         Console.WriteLine("⚠️ Warning: id_token not found during logout");
                     }
 
-                    if (string.IsNullOrEmpty(context.ProtocolMessage.PostLogoutRedirectUri))
-                    {
-                        context.ProtocolMessage.PostLogoutRedirectUri = keycloakOptions.PostLogoutRedirectUri;
-                    }
+                    // Dynamically determine the post-logout redirect URI based on the current request
+                    // This ensures redirects work for both HTTP (5041) and HTTPS (7235)
+                    var request = context.Request;
+                    var postLogoutUri = $"{request.Scheme}://{request.Host}{request.PathBase}/logged-out";
+                    
+                    Console.WriteLine($"Generated PostLogoutRedirectUri: {postLogoutUri}");
+                    context.ProtocolMessage.PostLogoutRedirectUri = postLogoutUri;
     
                     return Task.CompletedTask;
                 };
