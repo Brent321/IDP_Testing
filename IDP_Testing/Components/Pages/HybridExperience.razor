@@ -1,0 +1,68 @@
+@page "/hybrid"
+@attribute [Authorize]
+
+<PageTitle>Hybrid Experience</PageTitle>
+
+<div class="container mt-4">
+    <h1>Hybrid React / Blazor</h1>
+    <p class="text-muted">Blazor UI with an embedded React app on the same page.</p>
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Blazor Section</h5>
+                </div>
+                <div class="card-body">
+                    <AuthorizeView>
+                        <Authorized>
+                            <p class="mb-2">Signed in as <strong>@context.User.Identity?.Name</strong></p>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    <div class="alert alert-info mb-3">
+                        This counter is rendered and updated by Blazor.
+                    </div>
+
+                    <div class="d-flex align-items-center gap-3">
+                        <button class="btn btn-outline-primary" @onclick="Increment">Increment</button>
+                        <span class="fs-5">Count: <strong>@count</strong></span>
+                    </div>
+
+                    <hr />
+
+                    <p class="text-muted mb-0">
+                        The React content is embedded next to this Blazor content.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header bg-dark text-white d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">React Section</h5>
+                    <a class="btn btn-sm btn-outline-light" href="react/" target="_blank" rel="noopener noreferrer">
+                        Open React in new tab
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="ratio ratio-16x9">
+                        <iframe
+                            src="react/"
+                            title="React App"
+                            style="border: 0; width: 100%; height: 100%;"
+                            loading="lazy">
+                        </iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int count;
+
+    private void Increment() => count++;
+}
