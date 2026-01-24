@@ -68,10 +68,14 @@
         background: none;
         border: none;
         border-radius: 4px;
-        height: 3rem;
         display: flex;
         align-items: center;
-        line-height: 3rem;
+        min-height: 3rem;
+        height: auto;
+        line-height: 1.2;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+        white-space: normal;
         width: 100%;
     }
 
